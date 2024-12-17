@@ -3,6 +3,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { GAME_CONSTANTS, GameObject, Projectile, Asteroid, PowerUp } from '../game/constants';
 import SoundManager from '../game/SoundManager';
 import { PowerUpManager } from '../game/PowerUpManager';
+import { cn } from '@/lib/utils';
 
 export const Game = () => {
   const { toast } = useToast();
