@@ -55,3 +55,18 @@
     opacity: 0;
   }
 }
+
+@keyframes power-up-glow {
+  0%, 100% {
+    filter: brightness(1);
+    transform: scale(1);
+  }
+  50% {
+    filter: brightness(1.5);
+    transform: scale(1.1);
+  }
+}
+
+.power-up {
+  animation: power-up-glow 2s ease-in-out infinite;
+}

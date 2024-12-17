@@ -1,28 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useToast } from '@/components/ui/use-toast';
-import { cn } from '@/lib/utils';
-
-interface GameObject {
-  x: number;
-  y: number;
-  radius: number;
-}
-
-interface Projectile extends GameObject {
-  dx: number;
-  dy: number;
-}
-
-interface Asteroid extends GameObject {
-  speed: number;
-}
-
-const ROCKET_RADIUS = 20;
-const PROJECTILE_SPEED = 8;
-const PROJECTILE_RADIUS = 3;
-const ASTEROID_RADIUS = 15;
-const INITIAL_ASTEROID_SPEED = 2;
-const DIFFICULTY_INCREASE = 0.1;
+import { GAME_CONSTANTS, GameObject, Projectile, Asteroid, PowerUp } from '../game/constants';
+import SoundManager from '../game/SoundManager';
+import { PowerUpManager } from '../game/PowerUpManager';
 
 export const Game = () => {
   const { toast } = useToast();
@@ -31,10 +11,18 @@ export const Game = () => {
   const [score, setScore] = useState(0);
   const [gameTime, setGameTime] = useState(0);
   const [isGameOver, setIsGameOver] = useState(false);
-  const [rocket, setRocket] = useState<GameObject>({ x: 0, y: 0, radius: ROCKET_RADIUS });
+  const [rocket, setRocket] = useState<GameObject>({ 
+    x: 0, 
+    y: 0, 
+    radius: GAME_CONSTANTS.ROCKET_RADIUS 
+  });
   const [projectiles, setProjectiles] = useState<Projectile[]>([]);
   const [asteroids, setAsteroids] = useState<Asteroid[]>([]);
   const [particles, setParticles] = useState<GameObject[]>([]);
+  const [powerUps, setPowerUps] = useState<PowerUp[]>([]);
+  
+  const soundManager = SoundManager.getInstance();
+  const powerUpManager = useRef(new PowerUpManager()).current;
 
   const spawnAsteroid = () => {
     const angle = Math.random() * Math.PI * 2;
@@ -45,12 +33,12 @@ export const Game = () => {
     return {
       x,
       y,
-      radius: ASTEROID_RADIUS,
-      speed: INITIAL_ASTEROID_SPEED + (gameTime / 10000) * DIFFICULTY_INCREASE,
+      radius: GAME_CONSTANTS.ASTEROID_RADIUS,
+      speed: GAME_CONSTANTS.INITIAL_ASTEROID_SPEED + (gameTime / 10000) * GAME_CONSTANTS.DIFFICULTY_INCREASE,
     };
   };
 
-  const createParticles = (x: number, y: number, count: number) => {
+  const createParticles = (x: number, y: number, count: number, color: string = "#FFE66D") => {
     const newParticles: GameObject[] = [];
     for (let i = 0; i < count; i++) {
       newParticles.push({
@@ -73,15 +61,25 @@ export const Game = () => {
       e.clientX - rocket.x
     );
     
-    const projectile: Projectile = {
+    const createProjectile = (angleOffset: number = 0) => ({
       x: rocket.x,
       y: rocket.y,
-      radius: PROJECTILE_RADIUS,
-      dx: Math.cos(angle) * PROJECTILE_SPEED,
-      dy: Math.sin(angle) * PROJECTILE_SPEED,
-    };
+      radius: GAME_CONSTANTS.PROJECTILE_RADIUS,
+      dx: Math.cos(angle + angleOffset) * GAME_CONSTANTS.PROJECTILE_SPEED,
+      dy: Math.sin(angle + angleOffset) * GAME_CONSTANTS.PROJECTILE_SPEED,
+    });
+
+    const newProjectiles = [createProjectile()];
     
-    setProjectiles(prev => [...prev, projectile]);
+    if (powerUpManager.isPowerUpActive("multiShot")) {
+      newProjectiles.push(
+        createProjectile(-0.2),
+        createProjectile(0.2)
+      );
+    }
+    
+    setProjectiles(prev => [...prev, ...newProjectiles]);
+    soundManager.playSound("shoot", 0.3 + (gameTime / 60000) * 0.3);
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
@@ -99,17 +97,24 @@ export const Game = () => {
 
   useEffect(() => {
     if (!isGameOver) {
+      soundManager.startBackground();
+      
       const spawnInterval = setInterval(() => {
         setAsteroids(prev => [...prev, spawnAsteroid()]);
       }, 1000);
 
       const timeInterval = setInterval(() => {
-        setGameTime(prev => prev + 100);
+        setGameTime(prev => {
+          const newTime = prev + 100;
+          soundManager.setBackgroundVolume(newTime / 60000);
+          return newTime;
+        });
       }, 100);
 
       return () => {
         clearInterval(spawnInterval);
         clearInterval(timeInterval);
+        soundManager.stopBackground();
       };
     }
   }, [isGameOver]);
@@ -130,7 +135,7 @@ export const Game = () => {
         })
       );
 
-      // Update asteroids
+      // Update asteroids and check collisions
       setAsteroids(prev =>
         prev.filter(asteroid => {
           const angle = Math.atan2(
@@ -141,8 +146,9 @@ export const Game = () => {
           asteroid.y += Math.sin(angle) * asteroid.speed;
 
           // Check collision with rocket
-          if (checkCollision(asteroid, rocket)) {
+          if (checkCollision(asteroid, rocket) && !powerUpManager.isPowerUpActive("shield")) {
             setIsGameOver(true);
+            soundManager.playSound("explosion", 0.6);
             toast({
               title: "Game Over!",
               description: `Final Score: ${score} - Time: ${(gameTime / 1000).toFixed(1)}s`,
@@ -153,17 +159,45 @@ export const Game = () => {
           // Check collision with projectiles
           const hitByProjectile = projectiles.some(projectile => {
             if (checkCollision(asteroid, projectile)) {
-              setProjectiles(prev => 
-                prev.filter(p => p !== projectile)
-              );
+              setProjectiles(prev => prev.filter(p => p !== projectile));
               createParticles(asteroid.x, asteroid.y, 8);
+              soundManager.playSound("explosion", 0.4);
               setScore(prev => prev + 100);
+              
+              // Chance to spawn power-up
+              const powerUp = powerUpManager.spawnPowerUp(asteroid.x, asteroid.y);
+              if (powerUp) {
+                setPowerUps(prev => [...prev, powerUp]);
+              }
+              
               return true;
             }
             return false;
           });
 
           return !hitByProjectile;
+        })
+      );
+
+      // Update power-ups
+      setPowerUps(prev => 
+        prev.filter(powerUp => {
+          if (checkCollision(powerUp, rocket)) {
+            powerUpManager.activatePowerUp(powerUp.type);
+            soundManager.playSound("powerup");
+            createParticles(
+              powerUp.x, 
+              powerUp.y, 
+              12, 
+              powerUp.type === "shield" ? GAME_CONSTANTS.SHIELD_COLOR : GAME_CONSTANTS.MULTI_SHOT_COLOR
+            );
+            toast({
+              title: `Power-up Activated!`,
+              description: `${powerUp.type === "shield" ? "Shield" : "Multi-Shot"} active for ${GAME_CONSTANTS.POWERUP_DURATION / 1000}s`,
+            });
+            return false;
+          }
+          return true;
         })
       );
 
@@ -192,6 +226,20 @@ export const Game = () => {
         <div>Time: {(gameTime / 1000).toFixed(1)}s</div>
       </div>
 
+      {/* Active Power-ups */}
+      <div className="fixed top-4 right-4 text-xl font-bold">
+        {powerUpManager.isPowerUpActive("shield") && (
+          <div className="text-cyan-400">
+            Shield: {(powerUpManager.getRemainingTime("shield") / 1000).toFixed(1)}s
+          </div>
+        )}
+        {powerUpManager.isPowerUpActive("multiShot") && (
+          <div className="text-yellow-400">
+            Multi-Shot: {(powerUpManager.getRemainingTime("multiShot") / 1000).toFixed(1)}s
+          </div>
+        )}
+      </div>
+
       {/* Game Over Screen */}
       {isGameOver && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
@@ -211,10 +259,15 @@ export const Game = () => {
 
       {/* Rocket */}
       <div
-        className="absolute w-4 h-4 bg-primary rounded-full"
+        className={cn(
+          "absolute w-4 h-4 bg-primary rounded-full transition-all duration-300",
+          powerUpManager.isPowerUpActive("shield") && "animate-pulse"
+        )}
         style={{
           transform: `translate(${rocket.x - rocket.radius}px, ${rocket.y - rocket.radius}px)`,
-          boxShadow: '0 0 10px #4DEEEA',
+          boxShadow: powerUpManager.isPowerUpActive("shield") 
+            ? `0 0 20px ${GAME_CONSTANTS.SHIELD_COLOR}, 0 0 40px ${GAME_CONSTANTS.SHIELD_COLOR}`
+            : '0 0 10px #4DEEEA',
         }}
       />
 
@@ -234,9 +287,23 @@ export const Game = () => {
       {asteroids.map((asteroid, index) => (
         <div
           key={index}
-          className="absolute w-8 h-8 bg-destructive rounded-full"
+          className="absolute w-8 h-8 bg-destructive rounded-full animate-pulse"
           style={{
             transform: `translate(${asteroid.x - asteroid.radius}px, ${asteroid.y - asteroid.radius}px)`,
+            boxShadow: `0 0 ${10 + (gameTime / 10000) * 10}px #FF4444`,
+          }}
+        />
+      ))}
+
+      {/* Power-ups */}
+      {powerUps.map((powerUp, index) => (
+        <div
+          key={index}
+          className="absolute w-8 h-8 rounded-full animate-bounce"
+          style={{
+            transform: `translate(${powerUp.x - powerUp.radius}px, ${powerUp.y - powerUp.radius}px)`,
+            backgroundColor: powerUp.type === "shield" ? GAME_CONSTANTS.SHIELD_COLOR : GAME_CONSTANTS.MULTI_SHOT_COLOR,
+            boxShadow: `0 0 15px ${powerUp.type === "shield" ? GAME_CONSTANTS.SHIELD_COLOR : GAME_CONSTANTS.MULTI_SHOT_COLOR}`,
           }}
         />
       ))}
