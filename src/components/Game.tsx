@@ -35,7 +35,7 @@ export const Game = () => {
       x,
       y,
       radius: GAME_CONSTANTS.ASTEROID_RADIUS,
-      speed: GAME_CONSTANTS.INITIAL_ASTEROID_SPEED + (gameTime / 10000) * GAME_CONSTANTS.DIFFICULTY_INCREASE,
+      speed: GAME_CONSTANTS.INITIAL_ASTEROID_SPEED, // Removed speed scaling with time
     };
   };
 
@@ -284,14 +284,14 @@ export const Game = () => {
         />
       ))}
 
-      {/* Asteroids */}
+      {/* Asteroids - removed animate-pulse class */}
       {asteroids.map((asteroid, index) => (
         <div
           key={index}
-          className="absolute w-8 h-8 bg-destructive rounded-full animate-pulse"
+          className="absolute w-8 h-8 bg-destructive rounded-full"
           style={{
             transform: `translate(${asteroid.x - asteroid.radius}px, ${asteroid.y - asteroid.radius}px)`,
-            boxShadow: `0 0 ${10 + (gameTime / 10000) * 10}px #FF4444`,
+            boxShadow: '0 0 10px #FF4444',
           }}
         />
       ))}
