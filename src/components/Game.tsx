@@ -4,11 +4,13 @@ import { GAME_CONSTANTS, GameObject, Projectile, Asteroid, PowerUp } from '../ga
 import SoundManager from '../game/SoundManager';
 import { PowerUpManager } from '../game/PowerUpManager';
 import { cn } from '@/lib/utils';
+import { RocketController } from '../game/RocketController';
 
 export const Game = () => {
   const { toast } = useToast();
   const canvasRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<number>();
+  const rocketController = useRef(new RocketController()).current;
   const [score, setScore] = useState(0);
   const [gameTime, setGameTime] = useState(0);
   const [isGameOver, setIsGameOver] = useState(false);
@@ -85,7 +87,8 @@ export const Game = () => {
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!isGameOver) {
-      setRocket(prev => ({ ...prev, x: e.clientX, y: e.clientY }));
+      const newRocket = rocketController.updatePosition(e, rocket);
+      setRocket(newRocket);
     }
   };
 
@@ -261,7 +264,7 @@ export const Game = () => {
       {/* Rocket */}
       <div
         className={cn(
-          "absolute w-4 h-4 bg-primary rounded-full transition-all duration-300",
+          "absolute w-4 h-4 bg-primary rounded-full transition-none",
           powerUpManager.isPowerUpActive("shield") && "animate-pulse"
         )}
         style={{
@@ -284,7 +287,7 @@ export const Game = () => {
         />
       ))}
 
-      {/* Asteroids - removed animate-pulse class */}
+      {/* Asteroids */}
       {asteroids.map((asteroid, index) => (
         <div
           key={index}
