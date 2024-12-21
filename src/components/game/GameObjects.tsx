@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { GameObject, Projectile, Asteroid, PowerUp, GAME_CONSTANTS } from "@/game/constants";
+import RocketIcon from "./RocketIcon";
 
 interface GameObjectsProps {
   rocket: GameObject;
@@ -23,25 +24,27 @@ export const GameObjects = ({
       {/* Rocket */}
       <div
         className={cn(
-          "absolute w-4 h-4 bg-primary rounded-full transition-none",
+          "absolute w-8 h-8 transition-transform duration-100",
           hasShield && "animate-pulse"
         )}
         style={{
-          transform: `translate(${rocket.x - rocket.radius}px, ${rocket.y - rocket.radius}px)`,
-          boxShadow: hasShield 
-            ? `0 0 20px ${GAME_CONSTANTS.SHIELD_COLOR}, 0 0 40px ${GAME_CONSTANTS.SHIELD_COLOR}`
-            : '0 0 10px #4DEEEA',
+          transform: `translate(${rocket.x - 16}px, ${rocket.y - 16}px)`,
+          filter: hasShield 
+            ? `drop-shadow(0 0 8px ${GAME_CONSTANTS.SHIELD_COLOR})`
+            : 'drop-shadow(0 0 4px rgba(77, 238, 234, 0.6))',
         }}
-      />
+      >
+        <RocketIcon className="w-full h-full text-primary animate-pulse" />
+      </div>
 
       {/* Projectiles */}
       {projectiles.map((projectile, index) => (
         <div
           key={index}
-          className="absolute w-1.5 h-1.5 bg-yellow-300 rounded-full"
+          className="absolute w-2 h-2 bg-yellow-300 rounded-full animate-pulse"
           style={{
             transform: `translate(${projectile.x - projectile.radius}px, ${projectile.y - projectile.radius}px)`,
-            boxShadow: '0 0 5px #FFE66D',
+            boxShadow: '0 0 8px #FFE66D, 0 0 16px rgba(255, 230, 109, 0.5)',
           }}
         />
       ))}
@@ -50,10 +53,11 @@ export const GameObjects = ({
       {asteroids.map((asteroid, index) => (
         <div
           key={index}
-          className="absolute w-8 h-8 bg-destructive rounded-full"
+          className="absolute w-8 h-8 bg-destructive rounded-full animate-pulse"
           style={{
             transform: `translate(${asteroid.x - asteroid.radius}px, ${asteroid.y - asteroid.radius}px)`,
-            boxShadow: '0 0 10px #FF4444',
+            boxShadow: '0 0 15px rgba(255, 68, 68, 0.7), 0 0 30px rgba(255, 68, 68, 0.4)',
+            background: 'radial-gradient(circle at 30% 30%, #ff6b6b, #ff4444)',
           }}
         />
       ))}
@@ -62,11 +66,11 @@ export const GameObjects = ({
       {powerUps.map((powerUp, index) => (
         <div
           key={index}
-          className="absolute w-8 h-8 rounded-full animate-bounce"
+          className="absolute w-8 h-8 rounded-full power-up"
           style={{
             transform: `translate(${powerUp.x - powerUp.radius}px, ${powerUp.y - powerUp.radius}px)`,
             backgroundColor: powerUp.type === "shield" ? GAME_CONSTANTS.SHIELD_COLOR : GAME_CONSTANTS.MULTI_SHOT_COLOR,
-            boxShadow: `0 0 15px ${powerUp.type === "shield" ? GAME_CONSTANTS.SHIELD_COLOR : GAME_CONSTANTS.MULTI_SHOT_COLOR}`,
+            boxShadow: `0 0 20px ${powerUp.type === "shield" ? GAME_CONSTANTS.SHIELD_COLOR : GAME_CONSTANTS.MULTI_SHOT_COLOR}`,
           }}
         />
       ))}
@@ -75,10 +79,12 @@ export const GameObjects = ({
       {particles.map((particle, index) => (
         <div
           key={index}
-          className="particle w-1 h-1 bg-yellow-300 rounded-full"
+          className="particle w-2 h-2 rounded-full"
           style={{
             left: particle.x,
             top: particle.y,
+            background: 'radial-gradient(circle at center, #FFE66D, #FFD700)',
+            boxShadow: '0 0 8px rgba(255, 230, 109, 0.8)',
           }}
         />
       ))}
