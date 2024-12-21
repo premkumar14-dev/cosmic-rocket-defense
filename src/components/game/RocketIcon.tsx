@@ -1,13 +1,10 @@
+import { Rocket } from "lucide-react";
+
 const RocketIcon = ({ className }: { className?: string }) => (
-  <svg
-    xmlns="http://www.w3.org/dialog"
-    viewBox="0 0 24 24"
-    className={className}
-    fill="currentColor"
-  >
-    <path d="M12.9 2.5c-.3-.4-.7-.4-1-.2-.3.2-.5.7-.3 1.1l1.6 3.9-2 .7c-.3.1-.5.3-.6.6l-1.9 4.7-1.2-1.2c-.2-.2-.5-.3-.8-.2l-2 .7c-.5.2-.7.7-.5 1.1.2.4.7.6 1.1.5l1.4-.5.9.9c.2.2.5.3.8.2.3-.1.5-.3.6-.6l1.9-4.7 2-.7c.3-.1.5-.3.6-.6l2-5c.2-.4 0-.8-.3-1.1l-1.3.3z"/>
-    <path d="M18.9 8.5c-.3-.4-.7-.4-1-.2-.3.2-.5.7-.3 1.1l1.6 3.9-2 .7c-.3.1-.5.3-.6.6l-1.9 4.7-1.2-1.2c-.2-.2-.5-.3-.8-.2l-2 .7c-.5.2-.7.7-.5 1.1.2.4.7.6 1.1.5l1.4-.5.9.9c.2.2.5.3.8.2.3-.1.5-.3.6-.6l1.9-4.7 2-.7c.3-.1.5-.3.6-.6l2-5c.2-.4 0-.8-.3-1.1l-1.3.3z"/>
-  </svg>
+  <Rocket 
+    className={className} 
+    strokeWidth={1.5}
+  />
 );
 
 export default RocketIcon;

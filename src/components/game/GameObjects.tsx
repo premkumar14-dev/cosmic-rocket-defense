@@ -24,11 +24,11 @@ export const GameObjects = ({
       {/* Rocket */}
       <div
         className={cn(
-          "absolute w-8 h-8 transition-transform duration-100",
+          "absolute w-10 h-10 transition-transform duration-100",
           hasShield && "animate-pulse"
         )}
         style={{
-          transform: `translate(${rocket.x - 16}px, ${rocket.y - 16}px)`,
+          transform: `translate(${rocket.x - 20}px, ${rocket.y - 20}px) rotate(90deg)`,
           filter: hasShield 
             ? `drop-shadow(0 0 8px ${GAME_CONSTANTS.SHIELD_COLOR})`
             : 'drop-shadow(0 0 4px rgba(77, 238, 234, 0.6))',
@@ -53,11 +53,11 @@ export const GameObjects = ({
       {asteroids.map((asteroid, index) => (
         <div
           key={index}
-          className="absolute w-8 h-8 bg-destructive rounded-full animate-pulse"
+          className="absolute w-8 h-8 rounded-full animate-pulse"
           style={{
             transform: `translate(${asteroid.x - asteroid.radius}px, ${asteroid.y - asteroid.radius}px)`,
-            boxShadow: '0 0 15px rgba(255, 68, 68, 0.7), 0 0 30px rgba(255, 68, 68, 0.4)',
-            background: 'radial-gradient(circle at 30% 30%, #ff6b6b, #ff4444)',
+            background: 'radial-gradient(circle at 30% 30%, rgb(255, 107, 107), rgb(255, 68, 68))',
+            boxShadow: '0 0 15px rgba(255, 68, 68, 0.7), inset 0 0 15px rgba(255, 255, 255, 0.3)',
           }}
         />
       ))}
