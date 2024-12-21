@@ -7,6 +7,7 @@ import { RocketController } from '../game/RocketController';
 import { GameOverScreen } from './game/GameOverScreen';
 import { GameHUD } from './game/GameHUD';
 import { GameObjects } from './game/GameObjects';
+import { StarBackground } from './game/StarBackground';
 import { supabase } from '@/integrations/supabase/client';
 
 export const Game = () => {
@@ -18,8 +19,8 @@ export const Game = () => {
   const [gameTime, setGameTime] = useState(0);
   const [isGameOver, setIsGameOver] = useState(false);
   const [rocket, setRocket] = useState<GameObject & { angle?: number }>({ 
-    x: 0, 
-    y: 0, 
+    x: window.innerWidth / 2, 
+    y: window.innerHeight / 2, 
     radius: GAME_CONSTANTS.ROCKET_RADIUS,
     angle: 0
   });
@@ -103,8 +104,26 @@ export const Game = () => {
 
   const handleMove = (e: React.MouseEvent | React.TouchEvent) => {
     if (!isGameOver) {
+      let targetX: number;
+      let targetY: number;
+      
+      if ('touches' in e) {
+        const touch = e.touches[0];
+        targetX = touch.clientX;
+        targetY = touch.clientY;
+      } else {
+        targetX = (e as React.MouseEvent).clientX;
+        targetY = (e as React.MouseEvent).clientY;
+      }
+
+      // Calculate angle between current position and target
+      const angle = Math.atan2(
+        targetY - rocket.y,
+        targetX - rocket.x
+      );
+
       const newRocket = rocketController.updatePosition(e, rocket);
-      setRocket(newRocket);
+      setRocket({ ...newRocket, angle });
     }
   };
 
@@ -124,14 +143,22 @@ export const Game = () => {
     return distance < obj1.radius + obj2.radius;
   };
 
-  const saveScore = async (finalScore: number, finalTime: number) => {
+  const saveScore = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        console.error('No user found');
+        return;
+      }
+
       const { error } = await supabase
         .from('scores')
         .insert([
           { 
-            score: finalScore,
-            game_time: finalTime,
+            score: score,
+            game_time: gameTime,
+            user_id: user.id
           }
         ]);
 
@@ -266,20 +293,22 @@ export const Game = () => {
 
   useEffect(() => {
     if (isGameOver) {
-      saveScore(score, gameTime);
+      saveScore();
     }
-  }, [isGameOver, score, gameTime]);
+  }, [isGameOver]);
 
   return (
     <div 
       ref={canvasRef}
-      className="game-container fixed inset-0 cursor-none"
+      className="game-container fixed inset-0 cursor-none overflow-hidden"
       onClick={handleClick}
       onMouseMove={handleMove}
       onTouchStart={handleTouchStart}
       onTouchMove={handleMove}
       onTouchEnd={handleTouchEnd}
     >
+      <StarBackground />
+      
       <GameHUD 
         score={score}
         gameTime={gameTime}
