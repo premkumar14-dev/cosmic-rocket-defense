@@ -56,12 +56,24 @@ export const Game = () => {
     }, 500);
   };
 
-  const handleClick = (e: React.MouseEvent) => {
-    if (isGameOver) return;
+  const handleClick = (e: React.MouseEvent | React.TouchEvent) => {
+    if (isGameOver || rocketController.isDraggingActive()) return;
+    
+    let targetX: number;
+    let targetY: number;
+    
+    if ('touches' in e) {
+      const touch = e.touches[0];
+      targetX = touch.clientX;
+      targetY = touch.clientY;
+    } else {
+      targetX = (e as React.MouseEvent).clientX;
+      targetY = (e as React.MouseEvent).clientY;
+    }
     
     const angle = Math.atan2(
-      e.clientY - rocket.y,
-      e.clientX - rocket.x
+      targetY - rocket.y,
+      targetX - rocket.x
     );
     
     const createProjectile = (angleOffset: number = 0) => ({
@@ -85,11 +97,20 @@ export const Game = () => {
     soundManager.playSound("shoot", 0.3 + (gameTime / 60000) * 0.3);
   };
 
-  const handleMouseMove = (e: React.MouseEvent) => {
+  const handleMove = (e: React.MouseEvent | React.TouchEvent) => {
     if (!isGameOver) {
       const newRocket = rocketController.updatePosition(e, rocket);
       setRocket(newRocket);
     }
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    rocketController.startDragging();
+    handleMove(e);
+  };
+
+  const handleTouchEnd = () => {
+    rocketController.stopDragging();
   };
 
   const checkCollision = (obj1: GameObject, obj2: GameObject) => {
@@ -222,7 +243,10 @@ export const Game = () => {
       ref={canvasRef}
       className="game-container fixed inset-0 bg-background cursor-none"
       onClick={handleClick}
-      onMouseMove={handleMouseMove}
+      onMouseMove={handleMove}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleMove}
+      onTouchEnd={handleTouchEnd}
     >
       {/* Score and Timer */}
       <div className="fixed top-4 left-4 text-xl font-bold">
