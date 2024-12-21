@@ -3,8 +3,10 @@ import { useToast } from '@/components/ui/use-toast';
 import { GAME_CONSTANTS, GameObject, Projectile, Asteroid, PowerUp } from '../game/constants';
 import SoundManager from '../game/SoundManager';
 import { PowerUpManager } from '../game/PowerUpManager';
-import { cn } from '@/lib/utils';
 import { RocketController } from '../game/RocketController';
+import { GameOverScreen } from './game/GameOverScreen';
+import { GameHUD } from './game/GameHUD';
+import { GameObjects } from './game/GameObjects';
 
 export const Game = () => {
   const { toast } = useToast();
@@ -37,7 +39,7 @@ export const Game = () => {
       x,
       y,
       radius: GAME_CONSTANTS.ASTEROID_RADIUS,
-      speed: GAME_CONSTANTS.INITIAL_ASTEROID_SPEED, // Removed speed scaling with time
+      speed: GAME_CONSTANTS.INITIAL_ASTEROID_SPEED,
     };
   };
 
@@ -146,7 +148,6 @@ export const Game = () => {
 
   useEffect(() => {
     const updateGame = () => {
-      // Update projectiles
       setProjectiles(prev => 
         prev.filter(projectile => {
           projectile.x += projectile.dx;
@@ -226,7 +227,6 @@ export const Game = () => {
         })
       );
 
-      frameRef.current = requestAnimationFrame(updateGame);
     };
 
     frameRef.current = requestAnimationFrame(updateGame);
@@ -248,105 +248,27 @@ export const Game = () => {
       onTouchMove={handleMove}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Score and Timer */}
-      <div className="fixed top-4 left-4 text-xl font-bold">
-        <div>Score: {score}</div>
-        <div>Time: {(gameTime / 1000).toFixed(1)}s</div>
-      </div>
-
-      {/* Active Power-ups */}
-      <div className="fixed top-4 right-4 text-xl font-bold">
-        {powerUpManager.isPowerUpActive("shield") && (
-          <div className="text-cyan-400">
-            Shield: {(powerUpManager.getRemainingTime("shield") / 1000).toFixed(1)}s
-          </div>
-        )}
-        {powerUpManager.isPowerUpActive("multiShot") && (
-          <div className="text-yellow-400">
-            Multi-Shot: {(powerUpManager.getRemainingTime("multiShot") / 1000).toFixed(1)}s
-          </div>
-        )}
-      </div>
-
-      {/* Game Over Screen */}
-      {isGameOver && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
-          <div className="text-center p-8 rounded-lg bg-background/90">
-            <h2 className="text-4xl font-bold mb-4">Game Over!</h2>
-            <p className="text-xl mb-4">Score: {score}</p>
-            <p className="text-xl mb-4">Time: {(gameTime / 1000).toFixed(1)}s</p>
-            <button
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg"
-              onClick={() => window.location.reload()}
-            >
-              Play Again
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Rocket */}
-      <div
-        className={cn(
-          "absolute w-4 h-4 bg-primary rounded-full transition-none",
-          powerUpManager.isPowerUpActive("shield") && "animate-pulse"
-        )}
-        style={{
-          transform: `translate(${rocket.x - rocket.radius}px, ${rocket.y - rocket.radius}px)`,
-          boxShadow: powerUpManager.isPowerUpActive("shield") 
-            ? `0 0 20px ${GAME_CONSTANTS.SHIELD_COLOR}, 0 0 40px ${GAME_CONSTANTS.SHIELD_COLOR}`
-            : '0 0 10px #4DEEEA',
+      <GameHUD 
+        score={score}
+        gameTime={gameTime}
+        activePowerUps={{
+          shield: powerUpManager.isPowerUpActive("shield") ? powerUpManager.getRemainingTime("shield") : undefined,
+          multiShot: powerUpManager.isPowerUpActive("multiShot") ? powerUpManager.getRemainingTime("multiShot") : undefined,
         }}
       />
 
-      {/* Projectiles */}
-      {projectiles.map((projectile, index) => (
-        <div
-          key={index}
-          className="absolute w-1.5 h-1.5 bg-yellow-300 rounded-full"
-          style={{
-            transform: `translate(${projectile.x - projectile.radius}px, ${projectile.y - projectile.radius}px)`,
-            boxShadow: '0 0 5px #FFE66D',
-          }}
-        />
-      ))}
+      <GameObjects
+        rocket={rocket}
+        projectiles={projectiles}
+        asteroids={asteroids}
+        powerUps={powerUps}
+        particles={particles}
+        hasShield={powerUpManager.isPowerUpActive("shield")}
+      />
 
-      {/* Asteroids */}
-      {asteroids.map((asteroid, index) => (
-        <div
-          key={index}
-          className="absolute w-8 h-8 bg-destructive rounded-full"
-          style={{
-            transform: `translate(${asteroid.x - asteroid.radius}px, ${asteroid.y - asteroid.radius}px)`,
-            boxShadow: '0 0 10px #FF4444',
-          }}
-        />
-      ))}
-
-      {/* Power-ups */}
-      {powerUps.map((powerUp, index) => (
-        <div
-          key={index}
-          className="absolute w-8 h-8 rounded-full animate-bounce"
-          style={{
-            transform: `translate(${powerUp.x - powerUp.radius}px, ${powerUp.y - powerUp.radius}px)`,
-            backgroundColor: powerUp.type === "shield" ? GAME_CONSTANTS.SHIELD_COLOR : GAME_CONSTANTS.MULTI_SHOT_COLOR,
-            boxShadow: `0 0 15px ${powerUp.type === "shield" ? GAME_CONSTANTS.SHIELD_COLOR : GAME_CONSTANTS.MULTI_SHOT_COLOR}`,
-          }}
-        />
-      ))}
-
-      {/* Particles */}
-      {particles.map((particle, index) => (
-        <div
-          key={index}
-          className="particle w-1 h-1 bg-yellow-300 rounded-full"
-          style={{
-            left: particle.x,
-            top: particle.y,
-          }}
-        />
-      ))}
+      {isGameOver && (
+        <GameOverScreen score={score} gameTime={gameTime} />
+      )}
     </div>
   );
 };
