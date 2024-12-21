@@ -7,6 +7,7 @@ import { RocketController } from '../game/RocketController';
 import { GameOverScreen } from './game/GameOverScreen';
 import { GameHUD } from './game/GameHUD';
 import { GameObjects } from './game/GameObjects';
+import { supabase } from '@/integrations/supabase/client';
 
 export const Game = () => {
   const { toast } = useToast();
@@ -16,10 +17,11 @@ export const Game = () => {
   const [score, setScore] = useState(0);
   const [gameTime, setGameTime] = useState(0);
   const [isGameOver, setIsGameOver] = useState(false);
-  const [rocket, setRocket] = useState<GameObject>({ 
+  const [rocket, setRocket] = useState<GameObject & { angle?: number }>({ 
     x: 0, 
     y: 0, 
-    radius: GAME_CONSTANTS.ROCKET_RADIUS 
+    radius: GAME_CONSTANTS.ROCKET_RADIUS,
+    angle: 0
   });
   const [projectiles, setProjectiles] = useState<Projectile[]>([]);
   const [asteroids, setAsteroids] = useState<Asteroid[]>([]);
@@ -120,6 +122,30 @@ export const Game = () => {
     const dy = obj1.y - obj2.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
     return distance < obj1.radius + obj2.radius;
+  };
+
+  const saveScore = async (finalScore: number, finalTime: number) => {
+    try {
+      const { error } = await supabase
+        .from('scores')
+        .insert([
+          { 
+            score: finalScore,
+            game_time: finalTime,
+          }
+        ]);
+
+      if (error) {
+        console.error('Error saving score:', error);
+        toast({
+          title: "Error",
+          description: "Failed to save your score. Please try again.",
+          variant: "destructive"
+        });
+      }
+    } catch (err) {
+      console.error('Error in saveScore:', err);
+    }
   };
 
   useEffect(() => {
@@ -238,10 +264,16 @@ export const Game = () => {
     };
   }, [rocket, isGameOver]);
 
+  useEffect(() => {
+    if (isGameOver) {
+      saveScore(score, gameTime);
+    }
+  }, [isGameOver, score, gameTime]);
+
   return (
     <div 
       ref={canvasRef}
-      className="game-container fixed inset-0 bg-background cursor-none"
+      className="game-container fixed inset-0 cursor-none"
       onClick={handleClick}
       onMouseMove={handleMove}
       onTouchStart={handleTouchStart}

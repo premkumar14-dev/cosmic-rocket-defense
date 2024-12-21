@@ -1,9 +1,9 @@
 import { cn } from "@/lib/utils";
 import { GameObject, Projectile, Asteroid, PowerUp, GAME_CONSTANTS } from "@/game/constants";
-import RocketIcon from "./RocketIcon";
+import { Rocket } from "lucide-react";
 
 interface GameObjectsProps {
-  rocket: GameObject;
+  rocket: GameObject & { angle?: number };
   projectiles: Projectile[];
   asteroids: Asteroid[];
   powerUps: PowerUp[];
@@ -28,13 +28,13 @@ export const GameObjects = ({
           hasShield && "animate-pulse"
         )}
         style={{
-          transform: `translate(${rocket.x - 20}px, ${rocket.y - 20}px) rotate(90deg)`,
+          transform: `translate(${rocket.x - 20}px, ${rocket.y - 20}px) rotate(${rocket.angle || 0}deg)`,
           filter: hasShield 
             ? `drop-shadow(0 0 8px ${GAME_CONSTANTS.SHIELD_COLOR})`
             : 'drop-shadow(0 0 4px rgba(77, 238, 234, 0.6))',
         }}
       >
-        <RocketIcon className="w-full h-full text-primary animate-pulse" />
+        <Rocket className="w-full h-full text-primary animate-pulse" />
       </div>
 
       {/* Projectiles */}
