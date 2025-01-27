@@ -3,7 +3,7 @@ export const GAME_CONSTANTS = {
   PROJECTILE_SPEED: 8,
   PROJECTILE_RADIUS: 3,
   ASTEROID_RADIUS: 15,
-  INITIAL_ASTEROID_SPEED: 3,
+  INITIAL_ASTEROID_SPEED: 2, // Reduced base speed to make variations more noticeable
   POWERUP_RADIUS: 15,
   POWERUP_SPAWN_CHANCE: 0.1,
   POWERUP_DURATION: 5000,
@@ -28,6 +28,10 @@ export interface Asteroid extends GameObject {
   initialY: number;
   targetX: number;
   targetY: number;
+  direction: {
+    x: number;
+    y: number;
+  };
 }
 
 export type PowerUpType = "shield" | "multiShot";
