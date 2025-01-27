@@ -32,17 +32,33 @@ export const Game = () => {
   const soundManager = SoundManager.getInstance();
   const powerUpManager = useRef(new PowerUpManager()).current;
 
+  const getRandomSpeed = (baseSpeed: number) => {
+    // Add random variation of ±30% to the base speed
+    const variation = baseSpeed * 0.3;
+    return baseSpeed + (Math.random() * variation * 2 - variation);
+  };
+
+  const calculateBaseSpeed = (currentTime: number) => {
+    // Increase speed by 20% every minute, capped at 3x the initial speed
+    const timeInMinutes = currentTime / 60000;
+    const speedMultiplier = Math.min(1 + (timeInMinutes * 0.2), 3);
+    return GAME_CONSTANTS.INITIAL_ASTEROID_SPEED * speedMultiplier;
+  };
+
   const spawnAsteroid = () => {
     const angle = Math.random() * Math.PI * 2;
     const radius = Math.max(window.innerWidth, window.innerHeight);
     const x = window.innerWidth / 2 + Math.cos(angle) * radius;
     const y = window.innerHeight / 2 + Math.sin(angle) * radius;
     
+    const baseSpeed = calculateBaseSpeed(gameTime);
+    const randomizedSpeed = getRandomSpeed(baseSpeed);
+    
     return {
       x,
       y,
       radius: GAME_CONSTANTS.ASTEROID_RADIUS,
-      speed: GAME_CONSTANTS.INITIAL_ASTEROID_SPEED,
+      speed: randomizedSpeed,
     };
   };
 
