@@ -116,7 +116,6 @@ export const Game = () => {
         targetY = (e as React.MouseEvent).clientY;
       }
 
-      // Calculate angle between current position and target
       const angle = Math.atan2(
         targetY - rocket.y,
         targetX - rocket.x
@@ -156,7 +155,7 @@ export const Game = () => {
         .from('scores')
         .insert([
           { 
-            score: score,
+            score,
             game_time: gameTime,
             user_id: user.id
           }
@@ -169,9 +168,20 @@ export const Game = () => {
           description: "Failed to save your score. Please try again.",
           variant: "destructive"
         });
+      } else {
+        console.log('Score saved successfully');
+        toast({
+          title: "Success",
+          description: "Your score has been saved!",
+        });
       }
     } catch (err) {
       console.error('Error in saveScore:', err);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred while saving your score.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -214,7 +224,6 @@ export const Game = () => {
         })
       );
 
-      // Update asteroids and check collisions
       setAsteroids(prev =>
         prev.filter(asteroid => {
           const angle = Math.atan2(
@@ -224,7 +233,6 @@ export const Game = () => {
           asteroid.x += Math.cos(angle) * asteroid.speed;
           asteroid.y += Math.sin(angle) * asteroid.speed;
 
-          // Check collision with rocket
           if (checkCollision(asteroid, rocket) && !powerUpManager.isPowerUpActive("shield")) {
             setIsGameOver(true);
             soundManager.playSound("explosion", 0.6);
@@ -235,7 +243,6 @@ export const Game = () => {
             return false;
           }
 
-          // Check collision with projectiles
           const hitByProjectile = projectiles.some(projectile => {
             if (checkCollision(asteroid, projectile)) {
               setProjectiles(prev => prev.filter(p => p !== projectile));
@@ -243,7 +250,6 @@ export const Game = () => {
               soundManager.playSound("explosion", 0.4);
               setScore(prev => prev + 100);
               
-              // Chance to spawn power-up
               const powerUp = powerUpManager.spawnPowerUp(asteroid.x, asteroid.y);
               if (powerUp) {
                 setPowerUps(prev => [...prev, powerUp]);
@@ -258,7 +264,6 @@ export const Game = () => {
         })
       );
 
-      // Update power-ups
       setPowerUps(prev => 
         prev.filter(powerUp => {
           if (checkCollision(powerUp, rocket)) {
