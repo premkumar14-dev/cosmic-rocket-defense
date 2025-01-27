@@ -8,6 +8,8 @@ import { GameOverScreen } from './game/GameOverScreen';
 import { GameHUD } from './game/GameHUD';
 import { GameObjects } from './game/GameObjects';
 import { StarBackground } from './game/StarBackground';
+import { AsteroidManager } from '../game/AsteroidManager';
+import { CollisionDetector } from '../game/CollisionDetector';
 import { supabase } from '@/integrations/supabase/client';
 
 export const Game = () => {
@@ -15,6 +17,7 @@ export const Game = () => {
   const canvasRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<number>();
   const rocketController = useRef(new RocketController()).current;
+  const asteroidManager = useRef(new AsteroidManager()).current;
   const [score, setScore] = useState(0);
   const [gameTime, setGameTime] = useState(0);
   const [isGameOver, setIsGameOver] = useState(false);
@@ -31,36 +34,6 @@ export const Game = () => {
   
   const soundManager = SoundManager.getInstance();
   const powerUpManager = useRef(new PowerUpManager()).current;
-
-  const getRandomSpeed = (baseSpeed: number) => {
-    // Add random variation of ±30% to the base speed
-    const variation = baseSpeed * 0.3;
-    return baseSpeed + (Math.random() * variation * 2 - variation);
-  };
-
-  const calculateBaseSpeed = (currentTime: number) => {
-    // Increase speed by 20% every minute, capped at 3x the initial speed
-    const timeInMinutes = currentTime / 60000;
-    const speedMultiplier = Math.min(1 + (timeInMinutes * 0.2), 3);
-    return GAME_CONSTANTS.INITIAL_ASTEROID_SPEED * speedMultiplier;
-  };
-
-  const spawnAsteroid = () => {
-    const angle = Math.random() * Math.PI * 2;
-    const radius = Math.max(window.innerWidth, window.innerHeight);
-    const x = window.innerWidth / 2 + Math.cos(angle) * radius;
-    const y = window.innerHeight / 2 + Math.sin(angle) * radius;
-    
-    const baseSpeed = calculateBaseSpeed(gameTime);
-    const randomizedSpeed = getRandomSpeed(baseSpeed);
-    
-    return {
-      x,
-      y,
-      radius: GAME_CONSTANTS.ASTEROID_RADIUS,
-      speed: randomizedSpeed,
-    };
-  };
 
   const createParticles = (x: number, y: number, count: number, color: string = "#FFE66D") => {
     const newParticles: GameObject[] = [];
@@ -151,12 +124,115 @@ export const Game = () => {
     rocketController.stopDragging();
   };
 
-  const checkCollision = (obj1: GameObject, obj2: GameObject) => {
-    const dx = obj1.x - obj2.x;
-    const dy = obj1.y - obj2.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    return distance < obj1.radius + obj2.radius;
-  };
+  useEffect(() => {
+    if (!isGameOver) {
+      soundManager.startBackground();
+      
+      const spawnInterval = setInterval(() => {
+        setAsteroids(prev => [...prev, asteroidManager.spawnAsteroid(gameTime)]);
+      }, 1000);
+
+      const timeInterval = setInterval(() => {
+        setGameTime(prev => {
+          const newTime = prev + 100;
+          soundManager.setBackgroundVolume(newTime / 60000);
+          return newTime;
+        });
+      }, 100);
+
+      return () => {
+        clearInterval(spawnInterval);
+        clearInterval(timeInterval);
+        soundManager.stopBackground();
+      };
+    }
+  }, [isGameOver]);
+
+  useEffect(() => {
+    const updateGame = () => {
+      setProjectiles(prev => 
+        prev.filter(projectile => {
+          projectile.x += projectile.dx;
+          projectile.y += projectile.dy;
+          return (
+            projectile.x > 0 &&
+            projectile.x < window.innerWidth &&
+            projectile.y > 0 &&
+            projectile.y < window.innerHeight
+          );
+        })
+      );
+
+      setAsteroids(prev => {
+        const updatedAsteroids = asteroidManager.updateAsteroidPositions(prev, rocket.x, rocket.y);
+        return updatedAsteroids.filter(asteroid => {
+          if (CollisionDetector.checkCollision(asteroid, rocket) && !powerUpManager.isPowerUpActive("shield")) {
+            setIsGameOver(true);
+            soundManager.playSound("explosion", 0.6);
+            toast({
+              title: "Game Over!",
+              description: `Final Score: ${score} - Time: ${(gameTime / 1000).toFixed(1)}s`,
+            });
+            return false;
+          }
+
+          const hitByProjectile = projectiles.some(projectile => {
+            if (CollisionDetector.checkCollision(asteroid, projectile)) {
+              setProjectiles(prev => prev.filter(p => p !== projectile));
+              createParticles(asteroid.x, asteroid.y, 8);
+              soundManager.playSound("explosion", 0.4);
+              setScore(prev => prev + 100);
+              
+              const powerUp = powerUpManager.spawnPowerUp(asteroid.x, asteroid.y);
+              if (powerUp) {
+                setPowerUps(prev => [...prev, powerUp]);
+              }
+              
+              return true;
+            }
+            return false;
+          });
+
+          return !hitByProjectile;
+        });
+      });
+
+      setPowerUps(prev => 
+        prev.filter(powerUp => {
+          if (CollisionDetector.checkCollision(powerUp, rocket)) {
+            powerUpManager.activatePowerUp(powerUp.type);
+            soundManager.playSound("powerup");
+            createParticles(
+              powerUp.x, 
+              powerUp.y, 
+              12, 
+              powerUp.type === "shield" ? GAME_CONSTANTS.SHIELD_COLOR : GAME_CONSTANTS.MULTI_SHOT_COLOR
+            );
+            toast({
+              title: `Power-up Activated!`,
+              description: `${powerUp.type === "shield" ? "Shield" : "Multi-Shot"} active for ${GAME_CONSTANTS.POWERUP_DURATION / 1000}s`,
+            });
+            return false;
+          }
+          return true;
+        })
+      );
+    };
+
+    frameRef.current = requestAnimationFrame(updateGame);
+
+    return () => {
+      if (frameRef.current) {
+        cancelAnimationFrame(frameRef.current);
+      }
+    };
+  }, [rocket, isGameOver]);
+
+  useEffect(() => {
+    if (isGameOver) {
+      saveScore();
+    }
+  }, [isGameOver]);
 
   const saveScore = async () => {
     try {
@@ -200,123 +276,6 @@ export const Game = () => {
       });
     }
   };
-
-  useEffect(() => {
-    if (!isGameOver) {
-      soundManager.startBackground();
-      
-      const spawnInterval = setInterval(() => {
-        setAsteroids(prev => [...prev, spawnAsteroid()]);
-      }, 1000);
-
-      const timeInterval = setInterval(() => {
-        setGameTime(prev => {
-          const newTime = prev + 100;
-          soundManager.setBackgroundVolume(newTime / 60000);
-          return newTime;
-        });
-      }, 100);
-
-      return () => {
-        clearInterval(spawnInterval);
-        clearInterval(timeInterval);
-        soundManager.stopBackground();
-      };
-    }
-  }, [isGameOver]);
-
-  useEffect(() => {
-    const updateGame = () => {
-      setProjectiles(prev => 
-        prev.filter(projectile => {
-          projectile.x += projectile.dx;
-          projectile.y += projectile.dy;
-          return (
-            projectile.x > 0 &&
-            projectile.x < window.innerWidth &&
-            projectile.y > 0 &&
-            projectile.y < window.innerHeight
-          );
-        })
-      );
-
-      setAsteroids(prev =>
-        prev.filter(asteroid => {
-          const angle = Math.atan2(
-            rocket.y - asteroid.y,
-            rocket.x - asteroid.x
-          );
-          asteroid.x += Math.cos(angle) * asteroid.speed;
-          asteroid.y += Math.sin(angle) * asteroid.speed;
-
-          if (checkCollision(asteroid, rocket) && !powerUpManager.isPowerUpActive("shield")) {
-            setIsGameOver(true);
-            soundManager.playSound("explosion", 0.6);
-            toast({
-              title: "Game Over!",
-              description: `Final Score: ${score} - Time: ${(gameTime / 1000).toFixed(1)}s`,
-            });
-            return false;
-          }
-
-          const hitByProjectile = projectiles.some(projectile => {
-            if (checkCollision(asteroid, projectile)) {
-              setProjectiles(prev => prev.filter(p => p !== projectile));
-              createParticles(asteroid.x, asteroid.y, 8);
-              soundManager.playSound("explosion", 0.4);
-              setScore(prev => prev + 100);
-              
-              const powerUp = powerUpManager.spawnPowerUp(asteroid.x, asteroid.y);
-              if (powerUp) {
-                setPowerUps(prev => [...prev, powerUp]);
-              }
-              
-              return true;
-            }
-            return false;
-          });
-
-          return !hitByProjectile;
-        })
-      );
-
-      setPowerUps(prev => 
-        prev.filter(powerUp => {
-          if (checkCollision(powerUp, rocket)) {
-            powerUpManager.activatePowerUp(powerUp.type);
-            soundManager.playSound("powerup");
-            createParticles(
-              powerUp.x, 
-              powerUp.y, 
-              12, 
-              powerUp.type === "shield" ? GAME_CONSTANTS.SHIELD_COLOR : GAME_CONSTANTS.MULTI_SHOT_COLOR
-            );
-            toast({
-              title: `Power-up Activated!`,
-              description: `${powerUp.type === "shield" ? "Shield" : "Multi-Shot"} active for ${GAME_CONSTANTS.POWERUP_DURATION / 1000}s`,
-            });
-            return false;
-          }
-          return true;
-        })
-      );
-
-    };
-
-    frameRef.current = requestAnimationFrame(updateGame);
-
-    return () => {
-      if (frameRef.current) {
-        cancelAnimationFrame(frameRef.current);
-      }
-    };
-  }, [rocket, isGameOver]);
-
-  useEffect(() => {
-    if (isGameOver) {
-      saveScore();
-    }
-  }, [isGameOver]);
 
   return (
     <div 
