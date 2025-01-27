@@ -24,6 +24,10 @@ export interface Projectile extends GameObject {
 
 export interface Asteroid extends GameObject {
   speed: number;
+  initialX: number;
+  initialY: number;
+  targetX: number;
+  targetY: number;
 }
 
 export type PowerUpType = "shield" | "multiShot";
